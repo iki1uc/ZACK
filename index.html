@@ -2,88 +2,388 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>ZACK · al Natura · Show</title>
-
+<title>AMIGA · Transwarp Gate · Deluxe</title>
 <style>
+  * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    margin:0;
-    background:#0a0a0a;
-    color:#f8e9c9;
-    font-family: monospace;
+    background:#000;
     display:flex;
     justify-content:center;
     align-items:center;
     height:100vh;
     overflow:hidden;
+    font-family:sans-serif;
   }
-
-  .showbox {
-    text-align:center;
-    padding:40px;
-    border:2px solid #ffd27f;
+  canvas {
+    background:#0a0a12;
+    display:block;
     border-radius:12px;
-    background:rgba(255,210,127,0.05);
-    box-shadow:0 0 40px rgba(255,210,127,0.15);
-    width:600px;
-  }
-
-  .title {
-    font-size:32px;
-    margin-bottom:20px;
-    color:#ffd27f;
-  }
-
-  .line {
-    font-size:18px;
-    margin:10px 0;
-    opacity:0.9;
-  }
-
-  .status {
-    margin-top:30px;
-    font-size:14px;
-    opacity:0.6;
+    box-shadow:0 0 60px rgba(50,150,255,0.08);
   }
 </style>
 </head>
 <body>
 
-<div class="showbox">
-  <div class="title">ZACK · al Natura · Aroma</div>
+<canvas id="scene" width="800" height="500"></canvas>
 
-  <div class="line">Dieses System entfaltet sich wie ein Duft.</div>
-  <div class="line">Nicht laut. Nicht schwer. Nicht technisch.</div>
+<script>
+const c = document.getElementById("scene");
+const ctx = c.getContext("2d");
 
-  <div class="line">Achsen: A81 · 9×9 · 3×3 — wie Gewürze.</div>
-  <div class="line">Pipelines: 3 · 6 · 9 · 12 — wie Nudeln im Wasser.</div>
-  <div class="line">QI · IQQ · OCTA — wie warmer Dampf.</div>
+// ============================================================
+// 1. STERNE (ruhend + glimmend)
+// ============================================================
+const stars = [];
+for (let i = 0; i < 180; i++) {
+  stars.push({
+    x: Math.random() * c.width,
+    y: Math.random() * c.height,
+    r: 0.3 + Math.random() * 1.2,
+    a: 0.3 + Math.random() * 0.7,
+    speed: 0.005 + Math.random() * 0.02
+  });
+}
 
-  <div class="line">ZACK startet nicht — es entfaltet sich.</div>
-  <div class="line">Alles al Natura. Alles im Aroma.</div>
+// ============================================================
+// 2. GATE – das Transwarp‑Portal
+// ============================================================
+const gate = {
+  x: 580,
+  y: c.height / 2,
+  outerR: 80,
+  innerR: 55,
+  angle: 0,
+  pulse: 0,
+  segments: 12,
+  glowIntensity: 0
+};
 
-  <div class="status" id="status">Module werden geladen…</div>
-</div>
+// ============================================================
+// 3. WÜRFEL – der Reisende
+// ============================================================
+const cube = {
+  x: 60,
+  y: c.height / 2,
+  size: 24,
+  scale: 1,
+  speed: 2.8,
+  alpha: 1,
+  rotation: 0,
+  trail: [],
+  phase: 'approach', // 'approach' | 'enter' | 'flash' | 'reset'
+  flashTimer: 0,
+  trailTimer: 0
+};
 
-<script type="module">
+// ============================================================
+// 4. PARTIKEL – beim Einsaugen
+// ============================================================
+const particles = [];
 
-import { Stage } from "./stage.js";
-import { StagePipeline } from "./stage.pipeline.js";
-import { RunOver } from "./run.over.js";
+// ============================================================
+// 5. HILFSFUNKTIONEN
+// ============================================================
+function dist(x1,y1,x2,y2) {
+  return Math.hypot(x2-x1, y2-y1);
+}
 
-import { CPU } from "./cpu.js";
-import { GPU } from "./gpu.js";
-import { RAM } from "./ram.js";
-import { MassHWTranswarp } from "./mass.js";
+function lerp(a,b,t) { return a + (b-a)*t; }
 
-import { TMPcubik } from "./TMP.tmp.js";
-import { NO1Room } from "./NO1.room.js";
-import { ANKERrom } from "./ANKER.rom.js";
+// ============================================================
+// 6. ZEICHNEN: STERNE
+// ============================================================
+function drawStars(time) {
+  stars.forEach(s => {
+    const flicker = 0.6 + 0.4 * Math.sin(time * s.speed + s.x);
+    ctx.globalAlpha = s.a * flicker;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
 
-import { TimeHW } from "./time.js";
-import { Use } from "./use.js";
+// ============================================================
+// 7. ZEICHNEN: GATE
+// ============================================================
+function drawGate(time) {
+  gate.angle += 0.008;
+  gate.pulse = 0.7 + 0.3 * Math.sin(time * 0.003);
+  gate.glowIntensity = 0.4 + 0.3 * Math.sin(time * 0.005 + 1);
 
-const status = document.getElementById("status");
+  const {x, y, outerR, innerR, segments} = gate;
 
-async function startZACK() {
+  // ── Glow‑Halo ──
+  const halo = ctx.createRadialGradient(x, y, innerR*0.6, x, y, outerR*1.8);
+  halo.addColorStop(0, `rgba(80,160,255,${0.06 * gate.glowIntensity})`);
+  halo.addColorStop(0.5, `rgba(40,100,255,${0.03 * gate.glowIntensity})`);
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(x, y, outerR * 1.8, 0, Math.PI*2);
+  ctx.fill();
 
-  status
+  // ── äußerer Ring (rotierend) ──
+  ctx.strokeStyle = `rgba(100,180,255,${0.25 * gate.pulse})`;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([6, 10]);
+  ctx.lineDashOffset = -time * 0.02;
+  ctx.beginPath();
+  ctx.arc(x, y, outerR, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── innerer Ring (gegenläufig) ──
+  ctx.strokeStyle = `rgba(180,220,255,${0.15 * gate.pulse})`;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 8]);
+  ctx.lineDashOffset = time * 0.025;
+  ctx.beginPath();
+  ctx.arc(x, y, innerR, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Segment‑Chevrons (wie Stargate) ──
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * Math.PI*2 + gate.angle;
+    const r1 = innerR + 4;
+    const r2 = outerR - 4;
+    const cx1 = x + Math.cos(a) * r1;
+    const cy1 = y + Math.sin(a) * r1;
+    const cx2 = x + Math.cos(a) * r2;
+    const cy2 = y + Math.sin(a) * r2;
+
+    const bright = 0.15 + 0.2 * (0.5 + 0.5 * Math.sin(time * 0.002 + i * 1.2));
+    ctx.strokeStyle = `rgba(150,210,255,${bright})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx1, cy1);
+    ctx.lineTo(cx2, cy2);
+    ctx.stroke();
+  }
+
+  // ── Kern‑Glow ──
+  const core = ctx.createRadialGradient(x, y, 2, x, y, innerR * 0.7);
+  core.addColorStop(0, `rgba(160,210,255,${0.2 * gate.pulse})`);
+  core.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(x, y, innerR * 0.7, 0, Math.PI*2);
+  ctx.fill();
+
+  // ── kleiner Kernpunkt ──
+  ctx.shadowColor = '#88ddff';
+  ctx.shadowBlur = 30 * gate.pulse;
+  ctx.fillStyle = `rgba(200,240,255,${0.3 * gate.pulse})`;
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// 8. ZEICHNEN: WÜRFEL MIT TRAIL
+// ============================================================
+function drawCube() {
+  const s = cube.size * cube.scale;
+
+  // ── Trail ──
+  cube.trail.forEach((p, i) => {
+    const alpha = (i / cube.trail.length) * 0.5;
+    const sz = s * (0.2 + 0.8 * (i / cube.trail.length));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#44ccff';
+    ctx.shadowColor = '#44ccff';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(p.x - sz/2, p.y - sz/2, sz, sz);
+  });
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // ── Würfel ──
+  ctx.save();
+  ctx.translate(cube.x, cube.y);
+  ctx.rotate(cube.rotation);
+  ctx.globalAlpha = cube.alpha;
+
+  // Glow
+  ctx.shadowColor = '#44ccff';
+  ctx.shadowBlur = 30;
+  ctx.fillStyle = '#44ccff';
+  ctx.fillRect(-s/2, -s/2, s, s);
+
+  // Innen‑Licht
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(180,240,255,0.3)';
+  ctx.fillRect(-s/2 + 3, -s/2 + 3, s - 6, s - 6);
+
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// 9. PARTIKEL
+// ============================================================
+function spawnParticles(count, x, y) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.008 + Math.random() * 0.02,
+      size: 2 + Math.random() * 5,
+      color: `hsl(${200 + Math.random() * 40}, 100%, ${60 + Math.random() * 30}%)`
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.02; // leichte Schwerkraft
+    p.life -= p.decay;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life * 0.8;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// 10. FLASH‑EFFEKT
+// ============================================================
+function drawFlash() {
+  if (cube.phase === 'flash') {
+    const progress = cube.flashTimer / 40;
+    const alpha = Math.sin(progress * Math.PI) * 0.7;
+    ctx.fillStyle = `rgba(150,220,255,${alpha})`;
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
+}
+
+// ============================================================
+// 11. HAUPTSCHLEIFE
+// ============================================================
+let time = 0;
+
+function update() {
+  time++;
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  // ── Sterne ──
+  drawStars(time);
+
+  // ── Gate ──
+  drawGate(time);
+
+  // ── Partikel ──
+  updateParticles();
+  drawParticles();
+
+  // ── Würfel-Bewegung ──
+  const gateDist = dist(cube.x, cube.y, gate.x, gate.y);
+
+  switch (cube.phase) {
+    case 'approach':
+      cube.x += cube.speed;
+      cube.rotation += 0.03;
+
+      // Trail speichern
+      cube.trail.push({ x: cube.x, y: cube.y });
+      if (cube.trail.length > 28) cube.trail.shift();
+
+      // Kontakt mit Gate
+      if (gateDist < gate.outerR) {
+        cube.phase = 'enter';
+        spawnParticles(50, cube.x, cube.y);
+      }
+      break;
+
+    case 'enter':
+      // Vergrößern
+      if (cube.scale < 4.5) cube.scale += 0.09;
+      // Fade
+      cube.alpha -= 0.025;
+      // Rotation beschleunigen
+      cube.rotation += 0.08;
+      // Einsaugen Richtung Gate
+      cube.x += (gate.x - cube.x) * 0.04;
+      cube.y += (gate.y - cube.y) * 0.02;
+      // Trail
+      cube.trail.push({ x: cube.x, y: cube.y });
+      if (cube.trail.length > 20) cube.trail.shift();
+
+      // Partikel nachziehen
+      if (time % 2 === 0) {
+        spawnParticles(3, cube.x + (Math.random()-0.5)*10, cube.y + (Math.random()-0.5)*10);
+      }
+
+      if (cube.alpha < 0.05) {
+        cube.phase = 'flash';
+        cube.flashTimer = 0;
+        spawnParticles(120, gate.x, gate.y);
+      }
+      break;
+
+    case 'flash':
+      cube.flashTimer++;
+      if (cube.flashTimer > 40) {
+        cube.phase = 'reset';
+        cube.flashTimer = 0;
+      }
+      break;
+
+    case 'reset':
+      // Reset nach kurzer Pause
+      cube.x = 60;
+      cube.y = c.height / 2 + (Math.random() - 0.5) * 40;
+      cube.size = 24;
+      cube.scale = 1;
+      cube.alpha = 1;
+      cube.rotation = 0;
+      cube.trail = [];
+      cube.phase = 'approach';
+      particles.length = 0;
+      break;
+  }
+
+  drawCube();
+  drawFlash();
+
+  // ── Gate-Puls bei Annäherung ──
+  if (cube.phase === 'approach' && gateDist < gate.outerR * 2) {
+    const intensity = 1 - (gateDist / (gate.outerR * 2));
+    gate.glowIntensity = 0.4 + 0.6 * intensity;
+  }
+
+  requestAnimationFrame(update);
+}
+
+// ============================================================
+// 12. START
+// ============================================================
+update();
+</script>
+
+</body>
+</html>
