@@ -2,30 +2,44 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>ZACK · al Natura · Aroma</title>
+<title>ZACK · al Natura · Show</title>
 
 <style>
   body {
     margin:0;
-    background:#111;
-    color:#f0e0c0;
+    background:#0a0a0a;
+    color:#f8e9c9;
     font-family: monospace;
-    padding:40px;
-    line-height:1.6;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
   }
 
-  .aroma {
-    font-size:18px;
-    opacity:0.9;
+  .showbox {
+    text-align:center;
+    padding:40px;
+    border:2px solid #ffd27f;
+    border-radius:12px;
+    background:rgba(255,210,127,0.05);
+    box-shadow:0 0 40px rgba(255,210,127,0.15);
+    width:600px;
   }
 
   .title {
-    font-size:28px;
+    font-size:32px;
     margin-bottom:20px;
     color:#ffd27f;
   }
 
-  .note {
+  .line {
+    font-size:18px;
+    margin:10px 0;
+    opacity:0.9;
+  }
+
+  .status {
     margin-top:30px;
     font-size:14px;
     opacity:0.6;
@@ -34,22 +48,20 @@
 </head>
 <body>
 
-<div class="title">ZACK · al Natura · Aroma</div>
+<div class="showbox">
+  <div class="title">ZACK · al Natura · Aroma</div>
 
-<div class="aroma">
-  Dieses System lädt sich wie ein Duft.<br>
-  Nicht laut. Nicht schwer. Nicht technisch.<br><br>
+  <div class="line">Dieses System entfaltet sich wie ein Duft.</div>
+  <div class="line">Nicht laut. Nicht schwer. Nicht technisch.</div>
 
-  Die Achsen (A81 · 9×9 · 3×3) entfalten sich wie Gewürze.<br>
-  Die Pipelines (3 · 6 · 9 · 12) fließen wie Nudeln im Wasser.<br>
-  QI / IQQ / OCTA steigen auf wie warmer Dampf.<br><br>
+  <div class="line">Achsen: A81 · 9×9 · 3×3 — wie Gewürze.</div>
+  <div class="line">Pipelines: 3 · 6 · 9 · 12 — wie Nudeln im Wasser.</div>
+  <div class="line">QI · IQQ · OCTA — wie warmer Dampf.</div>
 
-  ZACK startet nicht — es entfaltet sich.<br>
-  Alles al Natura. Alles im Aroma.
-</div>
+  <div class="line">ZACK startet nicht — es entfaltet sich.</div>
+  <div class="line">Alles al Natura. Alles im Aroma.</div>
 
-<div class="note">
-  Module werden geladen…
+  <div class="status" id="status">Module werden geladen…</div>
 </div>
 
 <script type="module">
@@ -70,39 +82,8 @@ import { ANKERrom } from "./ANKER.rom.js";
 import { TimeHW } from "./time.js";
 import { Use } from "./use.js";
 
-const note = document.querySelector(".note");
+const status = document.getElementById("status");
 
-async function aromaStart() {
+async function startZACK() {
 
-  note.innerText = "Aroma entfaltet…";
-
-  const stage = new Stage();
-  const pipeline = new StagePipeline(stage);
-  const run = new RunOver(pipeline);
-
-  const cpu = new CPU();
-  const gpu = new GPU();
-  const ram = new RAM();
-  const mass = new MassHWTranswarp();
-
-  const cubik = new TMPcubik();
-  const room = new NO1Room();
-  const anker = new ANKERrom();
-
-  const time = new TimeHW();
-  const use = new Use();
-
-  note.innerText = "ZACK atmet…";
-
-  pipeline.boot();
-  run.start();
-
-  note.innerText = "ZACK läuft · al Natura.";
-}
-
-aromaStart();
-
-</script>
-
-</body>
-</html>
+  status
